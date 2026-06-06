@@ -1,0 +1,79 @@
+name: CD
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  cd:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: docker build -t hello-flask:latest .
+
+      - name: Configure SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Deploy to server
+        run: |
+          # Copy files to server
+          rsync -avz --exclude='.git' --exclude='standards' \
+            -e "ssh -o StrictHostKeyChecking=no" \
+            . ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/opt/hello-flask/
+
+      - name: Deploy and restart on server
+        run: |
+          ssh -o StrictHostKeyChecking=no \
+            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
+            '
+            set -e
+            cd /opt/hello-flask
+
+            # Build with mirror for faster download in China
+            docker build --build-arg PIP_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple -t hello-flask:latest .
+
+            # Port allocation: try 8000 first, fallback to 8000-8100 range
+            port_in_use() {
+              ss -ltnH 2>/dev/null | grep -q ":$1 " && return 0
+              docker ps --format "{{.Ports}}" 2>/dev/null | grep -q ":$1->" && return 0
+              return 1
+            }
+
+            PORT=""
+            for p in $(seq 8000 8100); do
+              if ! port_in_use "$p"; then PORT="$p"; break; fi
+            done
+
+            if [ -z "$PORT" ]; then
+              echo ">> Port range 8000-8100 exhausted, deployment aborted"
+              exit 1
+            fi
+
+            echo ">> Deploying to host port $PORT"
+
+            # Stop and remove old container (idempotent)
+            docker rm -f hello-flask 2>/dev/null || true
+
+            # Run new container
+            docker run -d --name hello-flask --restart unless-stopped \
+              -p ${PORT}:8000 \
+              hello-flask:latest
+
+            # Wait for container to be ready
+            sleep 3
+
+            # Health check
+            curl -fsS "http://localhost:${PORT}/health"
+
+            echo ""
+            echo ">> Deployment successful!"
+            echo ">> Health check: http://${{ secrets.SSH_HOST }}:${PORT}/health"
+            '

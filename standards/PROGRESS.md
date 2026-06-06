@@ -7,9 +7,9 @@
 
 ## 当前状态 (最后更新: 2026-06-06 · by AI)
 
-- **阶段**: 初始化
-- **上一步完成**: 初始化 Git 仓库并创建远程仓库 (hello-flask-cicd)
-- **下一步 (TODO 第一条)**: 配置 GitHub Secrets
+- **阶段**: 开发中
+- **上一步完成**: GitHub Secrets 配置完成
+- **下一步 (TODO 第一条)**: 从 main 开第一条 feature 分支
 - **阻塞项**: 无
 
 ---
@@ -18,7 +18,7 @@
 
 - [x] 初始化 Git 仓库: `git init`
 - [x] 创建 GitHub 远程仓库并关联: https://github.com/DaTingLi/hello-flask-cicd
-- [ ] 配置 GitHub Secrets (SSH_PRIVATE_KEY, SSH_HOST, SSH_USER)
+- [x] 配置 GitHub Secrets (SSH_PRIVATE_KEY, SSH_HOST, SSH_USER)
 - [ ] 从 main 开第一条 feature 分支: `feature/1-welcome-endpoint`
 - [ ] 实现欢迎接口: GET / 返回欢迎 JSON
 - [ ] 实现健康检查接口: GET /health 返回 {"status":"ok"}
